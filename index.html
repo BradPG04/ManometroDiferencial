@@ -1,0 +1,87 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manómetro Diferencial Casero</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e40af">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold text-center mb-4">Manómetro Diferencial Casero</h1>
+        <p class="text-gray-600 text-center mb-2">Calcula la presión diferencial usando una jeringa de 10ml y un tubo de 4mm con agua.</p>
+        <p class="text-gray-600 text-center mb-4">Universidad de las Fuerzas Armadas ESPE<br>Integrantes: Conde Javier, Padilla Brad, Vásquez Richard</p>
+        
+        <div class="mb-4">
+            <label for="height" class="block text-sm font-medium text-gray-700">Diferencia de altura (mm):</label>
+            <input type="number" id="height" step="0.1" min="0" class="mt-1 p-2 w-full border rounded-md" placeholder="Ej: 105.5">
+        </div>
+        
+        <div class="mb-4">
+            <label for="unit" class="block text-sm font-medium text-gray-700">Unidad de presión:</label>
+            <select id="unit" class="mt-1 p-2 w-full border rounded-md">
+                <option value="pa">Pascals (Pa)</option>
+                <option value="bar">Bares (bar)</option>
+                <option value="mmh2o">Milímetros de agua (mmH₂O)</option>
+                <option value="mmhg">Milímetros de mercurio (mmHg)</option>
+            </select>
+        </div>
+        
+        <button onclick="calculatePressure()" class="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700">Calcular Presión</button>
+        
+        <div id="result" class="mt-4 text-center text-lg font-semibold"></div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado'))
+                    .catch(err => console.log('Error al registrar Service Worker:', err));
+            });
+        }
+    </script>
+</body>
+</html>
